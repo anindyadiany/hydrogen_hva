@@ -1,0 +1,50 @@
+{
+  "main": "pct-hydrogen.min.js",
+  "version": "1",
+  "sheetSettings": {
+    "defaultCols": 6,
+    "defaultRows": 6,
+    "minCols": 3,
+    "minRows": 3
+  },
+  "inputs": [
+    {
+      "key": "bearerToken",
+      "type": "String",
+      "label": "Bearer token (IXON API)"
+    },
+    {
+      "key": "companyId",
+      "type": "String",
+      "label": "Company ID"
+    },
+    {
+      "key": "apiApplication",
+      "type": "String",
+      "label": "API Application ID"
+    },
+    {
+      "key": "apiVersion",
+      "type": "String",
+      "label": "API Version",
+      "defaultValue": "2"
+    },
+    {
+      "key": "agentId",
+      "type": "String",
+      "label": "Agent publicId"
+    },
+    {
+      "key": "dataSourceName",
+      "type": "String",
+      "label": "Data source name",
+      "defaultValue": "Databron-PLC"
+    },
+    {
+      "key": "tagSlug",
+      "type": "String",
+      "label": "Tag slug",
+      "defaultValue": "FT_301"
+    }
+  ]
+}

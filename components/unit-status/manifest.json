@@ -1,0 +1,27 @@
+{
+  "main": "unit-status.js",
+  "version": "1",
+  "sheetSettings": {
+    "defaultCols": 6,
+    "defaultRows": 4,
+    "minCols": 3,
+    "minRows": 2
+  },
+  "inputs": [
+    {
+      "key": "commissioned",
+      "label": "Commissioned",
+      "type": "AggregatedMetric"
+    },
+    {
+      "key": "serviced",
+      "label": "Serviced",
+      "type": "AggregatedMetric"
+    },
+    {
+      "key": "maintenance",
+      "label": "Maintenance",
+      "type": "AggregatedMetric"
+    }
+  ]
+}

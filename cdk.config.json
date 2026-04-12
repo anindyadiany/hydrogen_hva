@@ -1,0 +1,30 @@
+{
+  "$schema": "./node_modules/@ixon-cdk/core/config/schema.json",
+  "prefix": "pct",
+  "components": {
+    "hello-world": {
+      "runner": {
+        "build": {
+          "builder": "@ixon-cdk/svelte-builder:browser",
+          "input": "hello-world.svelte"
+        }
+      }
+    },
+    "unit-status": {
+      "runner": {
+        "build": {
+          "builder": "@ixon-cdk/svelte-builder:browser",
+          "input": "unit-status.svelte"
+        }
+      }
+    },
+    "hydrogen": {
+      "runner": {
+        "build": {
+          "builder": "@ixon-cdk/svelte-builder:browser",
+          "input": "hydrogen.svelte"
+        }
+      }
+    }
+  }
+}

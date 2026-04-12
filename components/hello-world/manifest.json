@@ -1,0 +1,14 @@
+{
+  "main": "hello-world.svelte",
+  "version": "1",
+  "sheetSettings": {
+    "minHeight": 300
+  },
+  "inputs": [
+    {
+      "key": "metric",
+      "label": "H2 Production Metric",
+      "type": "AggregatedMetric"
+    }
+  ]
+}
