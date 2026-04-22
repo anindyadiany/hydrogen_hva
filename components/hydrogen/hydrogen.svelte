@@ -1,5 +1,5 @@
 <script>
-  import { onMount } from 'svelte';
+  import { onMount, afterUpdate } from 'svelte';
   import { Chart, registerables } from 'chart.js';
 
   Chart.register(...registerables);
@@ -10,8 +10,49 @@
   let loading = false;
   let error = null;
   let totalKg = 0;
-  let period = 'day';
   let chart = null;
+  let period = 'day'; // internal, determined from time range span
+
+  // Time adjustment variables
+  let from = '';
+  let to = '';
+  let isToDate = false;
+  let minuteAdjustment = 15;
+  let adjustmentTarget = 'from';
+
+  function toggleDateAdjustment() {
+    adjustmentTarget = isToDate ? 'to' : 'from';
+  }
+
+  function incrementTimeRange() {
+    adjustTimeRange(minuteAdjustment);
+  }
+
+  function decrementTimeRange() {
+    adjustTimeRange(-minuteAdjustment);
+  }
+
+  function adjustTimeRange(minutes) {
+    const newFrom = new Date(context.timeRange.from);
+    const newTo = new Date(context.timeRange.to);
+
+    if (adjustmentTarget === 'from') {
+      newFrom.setMinutes(newFrom.getMinutes() + minutes);
+    } else {
+      newTo.setMinutes(newTo.getMinutes() + minutes);
+    }
+    context.setTimeRange({ from: newFrom.getTime(), to: newTo.getTime() });
+  }
+
+
+  function formatDisplayDate(isoString) {
+    if (!isoString) return '';
+    const d = new Date(isoString);
+    return d.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
 
   const API_BASE = 'https://portal.ixon.cloud:443/api';
 
@@ -112,7 +153,6 @@
 
       results.sort((a, b) => new Date(a.time) - new Date(b.time));
 
-      // Deduplicate: keep last value per timestamp (matching Python's groupby.last())
       const deduped = {};
       for (const r of results) {
           deduped[r.time] = r;
@@ -120,18 +160,18 @@
       return Object.values(deduped);
   }
 
-  function buildChartData(points) {
+  function buildChartData(points, startMs, endMs) {
       const SAMPLE_SECONDS = 10;
 
       if (!points.length) return { labels: [], barData: [], cumData: [] };
 
       const startTime = new Date(points[0].time).getTime();
       const endTime = new Date(points[points.length - 1].time).getTime();
+      const spanMs = endMs - startMs;
 
-      // Align to clean 10-second boundaries like pandas does
+      // Align to clean 10-second boundaries
       const alignedStart = Math.floor(startTime / (SAMPLE_SECONDS * 1000)) * (SAMPLE_SECONDS * 1000);
 
-      // Build 10-second resampled series with forward fill
       const resampled = [];
       let ptIdx = 0;
       let lastFlow = 0;
@@ -146,11 +186,18 @@
           resampled.push({ time: t, flow: lastFlow });
       }
 
-      // Group into display buckets based on period
+      // Determine bucket format based on time span
       let bucketFormat;
-      if (period === 'hour') bucketFormat = (t) => new Date(t).toISOString().slice(11, 16);
-      else if (period === 'day') bucketFormat = (t) => new Date(t).toISOString().slice(11, 13) + ':00';
-      else bucketFormat = (t) => new Date(t).toISOString().slice(0, 10);
+      if (spanMs <= 3600 * 1000) {
+        // ≤ 1 hour: per minute
+        bucketFormat = (t) => new Date(t).toISOString().slice(11, 16);
+      } else if (spanMs <= 86400 * 1000) {
+        // ≤ 1 day: per hour
+        bucketFormat = (t) => new Date(t).toISOString().slice(11, 13) + ':00';
+      } else {
+        // > 1 day: per day
+        bucketFormat = (t) => new Date(t).toISOString().slice(0, 10);
+      }
 
       const barBuckets = {};
       for (const r of resampled) {
@@ -169,7 +216,10 @@
       return { labels, barData, cumData };
   }
 
-  async function fetchData() {
+  // Fetch using context.timeRange instead of period buttons
+  async function fetchDataFromTimeRange() {
+    if (!context || !context.timeRange) return;
+
     loading = true;
     error = null;
     totalKg = 0;
@@ -181,47 +231,24 @@
 
       if (!agentId) throw new Error('Agent ID not configured');
 
-      // const now = new Date();
-      // let start;
-      // if (period === 'hour') start = new Date(now - 3600 * 1000);
-      // else if (period === 'day') start = new Date(now - 86400 * 1000);
-      // else if (period === 'week') start = new Date(now - 7 * 86400 * 1000);
-      // else start = new Date(now - 30 * 86400 * 1000);
+      const startMs = context.timeRange.from;
+      const endMs = context.timeRange.to;
+      const fmt = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, 'Z');
+      const startStr = fmt(startMs);
+      const endStr = fmt(endMs);
 
-      // const fmt = (d) => d.toISOString().replace(/\.\d+Z$/, 'Z');
-      // const startStr = fmt(start);
-      // const endStr = fmt(now);
-
-      const now = new Date();
-      let start, end;
-
-      if (period === 'day') {
-          // Yesterday 00:00:00 to 23:59:59 UTC
-          const yesterday = new Date(now);
-          yesterday.setUTCDate(yesterday.getUTCDate() - 1);
-          start = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), 0, 0, 0));
-          end = new Date(Date.UTC(yesterday.getUTCFullYear(), yesterday.getUTCMonth(), yesterday.getUTCDate(), 23, 59, 59));
-      } else if (period === 'hour') {
-          start = new Date(now - 3600 * 1000);
-          end = now;
-      } else if (period === 'week') {
-          start = new Date(now - 7 * 86400 * 1000);
-          end = now;
-      } else {
-          start = new Date(now - 30 * 86400 * 1000);
-          end = now;
-      }
-
-      const fmt = (d) => d.toISOString().replace(/\.\d+Z$/, 'Z');
-      const startStr = fmt(start);
-      const endStr = fmt(end);
+      // Determine period label from span
+      const spanMs = endMs - startMs;
+      if (spanMs <= 3600 * 1000) period = 'hour';
+      else if (spanMs <= 86400 * 1000) period = 'day';
+      else if (spanMs <= 7 * 86400 * 1000) period = 'week';
+      else period = 'month';
 
       const dataSource = await getDataSourceId(agentId, dsName);
       const tags = await getTagsData(agentId, dataSource, slug);
 
       if (!tags.length) throw new Error(`Tag "${slug}" not found`);
 
-      // Split into monthly intervals (for large ranges)
       const intervals = splitMonthly(startStr, endStr);
       let allCsv = '';
 
@@ -232,14 +259,10 @@
 
       if (!allCsv.trim()) throw new Error('No data returned for this period');
 
-      console.log('Raw CSV (first 500 chars):', allCsv.slice(0, 500));
-      console.log('Tag slug looking for:', slug);
-
       const points = parseCSV(allCsv, slug);
-      console.log('Parsed points:', points.length);
       if (!points.length) throw new Error('No valid data points');
 
-      const { labels, barData, cumData } = buildChartData(points);
+      const { labels, barData, cumData } = buildChartData(points, startMs, endMs);
       totalKg = cumData.length ? cumData[cumData.length - 1] : 0;
       totalKg = Math.round(totalKg * 1000) / 1000;
 
@@ -251,6 +274,15 @@
     loading = false;
   }
 
+  // Set default time range to last 24 hours on init
+  function initTimeRange() {
+    const now = new Date();
+    const start = new Date(now - 86400 * 1000);
+    if (context && context.setTimeRange) {
+      context.setTimeRange({ from: start.getTime(), to: now.getTime() });
+    }
+  }
+
   function splitMonthly(startStr, endStr) {
     const start = new Date(startStr);
     const end = new Date(endStr);
@@ -259,7 +291,7 @@
 
     while (current < end) {
       let monthEnd = new Date(current.getFullYear(), current.getMonth() + 1, 1);
-      monthEnd = new Date(monthEnd - 1000); // last second of month
+      monthEnd = new Date(monthEnd - 1000);
       if (monthEnd > end) monthEnd = end;
       const fmt = (d) => d.toISOString().replace(/\.\d+Z$/, 'Z');
       intervals.push([fmt(current), fmt(monthEnd)]);
@@ -272,8 +304,7 @@
   function renderChart(labels, barData, cumData) {
     if (chart) chart.destroy();
 
-    const maxBar = Math.max(...barData, 1);
-    const maxCum = Math.max(...cumData, 1);
+    const spanLabel = period === 'hour' ? 'minute' : period === 'day' ? 'hour' : 'day';
 
     chart = new Chart(canvas, {
       data: {
@@ -281,7 +312,7 @@
         datasets: [
           {
             type: 'bar',
-            label: `H₂ per ${period === 'hour' ? 'minute' : period === 'day' ? 'hour' : 'day'} (kg)`,
+            label: `H₂ per ${spanLabel} (kg)`,
             data: barData,
             backgroundColor: '#007D24',
             borderColor: '#007D24',
@@ -311,8 +342,8 @@
         plugins: {
           title: {
             display: true,
-            text: `Hydrogen Production — ${period}`,
-            font: { size: 18, weight: 'bold' },
+            text: `Hydrogen Production — ${formatDisplayDate(from)} to ${formatDisplayDate(to)}`,
+            font: { size: 14, weight: 'bold' },
             align: 'start',
             padding: { bottom: 16 }
           },
@@ -353,26 +384,61 @@
     });
   }
 
-  function selectPeriod(p) {
-    period = p;
-    fetchData();
-  }
-
   onMount(() => {
-    fetchData();
+    // Listen for nav bar time range changes
+    context.ontimerangechange = (newTimeRange) => {
+      from = new Date(newTimeRange.from).toISOString();
+      to = new Date(newTimeRange.to).toISOString();
+      fetchDataFromTimeRange();
+    };
+
+    initTimeRange();
   });
 </script>
 
 <div class="hydrogen-widget">
-  <div class="controls">
-    {#each ['hour', 'day', 'week', 'month'] as p}
-      <button
-        class:active={period === p}
-        on:click={() => selectPeriod(p)}
-      >
-        {p.charAt(0).toUpperCase() + p.slice(1)}
-      </button>
-    {/each}
+  <!-- Time adjustment controls -->
+  <div class="time-controls">
+    <div class="time-display">
+      <span class="time-label">From:</span>
+      <span class="time-value">{formatDisplayDate(from)}</span>
+      <span class="time-label">To:</span>
+      <span class="time-value">{formatDisplayDate(to)}</span>
+    </div>
+    <div class="time-adjustment">
+      <div class="input-switch">
+        <label for="toggleTarget" class="switch-label">Start</label>
+        <input
+          type="checkbox"
+          id="toggleTarget"
+          class="toggle-input"
+          bind:checked={isToDate}
+          on:change={toggleDateAdjustment}
+        />
+        <label for="toggleTarget" class="switch"></label>
+        <label for="toggleTarget" class="switch-label">End</label>
+      </div>
+      <div class="button-group">
+        <button on:click={decrementTimeRange} class="adj-btn" aria-label="Decrease time range">
+          <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+            <path d="M480-120q-138 0-240.5-91.5T122-440h82q14 104 92.5 172T480-200q117 0 198.5-81.5T760-480q0-117-81.5-198.5T480-760q-69 0-129 32t-101 88h110v80H120v-240h80v94q51-64 124.5-99T480-840q75 0 140.5 28.5t114 77q48.5 48.5 77 114T840-480q0 75-28.5 140.5t-77 114q-48.5 48.5-114 77T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"/>
+          </svg>
+        </button>
+        <input
+          type="number"
+          class="minute-input"
+          bind:value={minuteAdjustment}
+          min="1"
+          aria-label="Minutes to adjust"
+        />
+        <span class="min-label">min</span>
+        <button on:click={incrementTimeRange} class="adj-btn" aria-label="Increase time range">
+          <svg xmlns="http://www.w3.org/2000/svg" height="20px" viewBox="0 -960 960 960" width="20px" fill="currentColor">
+            <path d="M480-120q-75 0-140.5-28.5t-114-77q-48.5-48.5-77-114T120-480q0-75 28.5-140.5t77-114q48.5-48.5 114-77T480-840q82 0 155.5 35T760-706v-94h80v240H600v-80h110q-41-56-101-88t-129-32q-117 0-198.5 81.5T200-480q0 117 81.5 198.5T480-200q105 0 183.5-68T756-440h82q-15 137-117.5 228.5T480-120Zm112-192L440-464v-216h80v184l128 128-56 56Z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
   </div>
 
   {#if loading}
@@ -382,7 +448,7 @@
   {:else}
     <div class="total">
       <span class="value">{totalKg}</span>
-      <span class="unit">kg H₂ / {period}</span>
+      <span class="unit">kg H₂</span>
     </div>
   {/if}
 
@@ -399,24 +465,129 @@
     box-sizing: border-box;
     font-family: sans-serif;
   }
-  .controls {
+
+  /* Time controls */
+  .time-controls {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 1rem;
     margin-bottom: 0.75rem;
+    flex-wrap: wrap;
+    padding: 0.5rem 0.75rem;
+    background: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
   }
-  .controls button {
-    padding: 0.4rem 0.8rem;
+
+  .time-display {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+    font-size: 0.8rem;
+  }
+  .time-label {
+    color: #888;
+    font-weight: 600;
+  }
+  .time-value {
+    color: #333;
+    font-family: monospace;
+    font-size: 0.78rem;
+    background: #fff;
+    padding: 0.15rem 0.4rem;
+    border-radius: 3px;
+    border: 1px solid #e0e0e0;
+  }
+
+  .time-adjustment {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-left: auto;
+  }
+
+  /* Toggle switch */
+  .input-switch {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+  .switch-label {
+    font-size: 0.75rem;
+    color: #666;
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-input {
+    display: none;
+  }
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 36px;
+    height: 20px;
+    background: #007D24;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .switch::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 16px;
+    height: 16px;
+    background: white;
+    border-radius: 50%;
+    transition: transform 0.2s;
+  }
+  .toggle-input:checked ~ .switch {
+    background: #C6000D;
+  }
+  .toggle-input:checked ~ .switch::after {
+    transform: translateX(16px);
+  }
+
+  /* Button group */
+  .button-group {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  .adj-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
     border: 1px solid #ccc;
     border-radius: 4px;
     background: #fff;
     cursor: pointer;
+    color: #555;
+    padding: 0;
+  }
+  .adj-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+  }
+  .minute-input {
+    width: 48px;
+    height: 32px;
+    text-align: center;
+    border: 1px solid #ccc;
+    border-radius: 4px;
     font-size: 0.85rem;
+    font-family: monospace;
   }
-  .controls button.active {
-    background: #007D24;
-    color: #fff;
-    border-color: #007D24;
+  .min-label {
+    font-size: 0.75rem;
+    color: #888;
   }
+
+  /* Total */
   .total {
     text-align: center;
     margin: 0.5rem 0;
@@ -431,6 +602,8 @@
     color: #666;
     margin-left: 0.25rem;
   }
+
+  /* Status */
   .status {
     text-align: center;
     padding: 1rem;
@@ -439,9 +612,11 @@
   .status.error {
     color: #C6000D;
   }
+
+  /* Chart */
   .chart-container {
     width: 100%;
-    height: calc(100% - 120px);
+    height: calc(100% - 180px);
     min-height: 250px;
     position: relative;
   }

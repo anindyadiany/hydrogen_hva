@@ -23,6 +23,10 @@
         "build": {
           "builder": "@ixon-cdk/svelte-builder:browser",
           "input": "hydrogen.svelte"
+        },
+        "deploy": {
+          "company": "9950-7313-3378-1625-9981",
+          "template": "IwU7m82tquB6"
         }
       }
     }

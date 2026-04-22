@@ -1,27 +1,55 @@
 {
-  "main": "unit-status.js",
+  "main": "pct-unit-status.min.js",
   "version": "1",
   "sheetSettings": {
     "defaultCols": 6,
-    "defaultRows": 4,
+    "defaultRows": 6,
     "minCols": 3,
-    "minRows": 2
+    "minRows": 3
   },
   "inputs": [
     {
-      "key": "commissioned",
-      "label": "Commissioned",
-      "type": "AggregatedMetric"
+      "key": "bearerToken",
+      "type": "String",
+      "label": "Bearer token (IXON API)",
+      "defaultValue": "OE94BPCEJeT8ZaaS5mIqOdJQ30Lo25sB"
     },
     {
-      "key": "serviced",
-      "label": "Serviced",
-      "type": "AggregatedMetric"
+      "key": "companyId",
+      "type": "String",
+      "label": "Company ID",
+      "defaultValue": "9950-7313-3378-1625-9981"
     },
     {
-      "key": "maintenance",
-      "label": "Maintenance",
-      "type": "AggregatedMetric"
+      "key": "apiApplication",
+      "type": "String",
+      "label": "API Application ID",
+      "defaultValue": "6ifJcQYa1rFY"
+    },
+    {
+      "key": "apiVersion",
+      "type": "String",
+      "label": "API Version",
+      "defaultValue": "2"
+    },
+    {
+      "key": "agentId",
+      "type": "String",
+      "label": "Agent publicId",
+      "defaultValue": "ll4ikpRsR2MC"
+    },
+    {
+      "key": "dataSourceName",
+      "type": "String",
+      "label": "Data source name",
+      "defaultValue": "Databron-PLC"
+    },
+    {
+      "key": "tagSlug",
+      "type": "String",
+      "label": "Tag slug",
+      "defaultValue": "FT_301"
     }
   ]
 }
+

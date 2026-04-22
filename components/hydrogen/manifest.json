@@ -11,17 +11,20 @@
     {
       "key": "bearerToken",
       "type": "String",
-      "label": "Bearer token (IXON API)"
+      "label": "Bearer token (IXON API)",
+      "defaultValue": "OE94BPCEJeT8ZaaS5mIqOdJQ30Lo25sB"
     },
     {
       "key": "companyId",
       "type": "String",
-      "label": "Company ID"
+      "label": "Company ID",
+      "defaultValue": "9950-7313-3378-1625-9981"
     },
     {
       "key": "apiApplication",
       "type": "String",
-      "label": "API Application ID"
+      "label": "API Application ID",
+      "defaultValue": "6ifJcQYa1rFY"
     },
     {
       "key": "apiVersion",
@@ -32,7 +35,8 @@
     {
       "key": "agentId",
       "type": "String",
-      "label": "Agent publicId"
+      "label": "Agent publicId",
+      "defaultValue": "ll4ikpRsR2MC"
     },
     {
       "key": "dataSourceName",
@@ -48,3 +52,4 @@
     }
   ]
 }
+
