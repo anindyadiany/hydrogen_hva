@@ -12,19 +12,19 @@
       "key": "bearerToken",
       "type": "String",
       "label": "Bearer token (IXON API)",
-      "defaultValue": "OE94BPCEJeT8ZaaS5mIqOdJQ30Lo25sB"
+      "defaultValue": ""
     },
     {
       "key": "companyId",
       "type": "String",
       "label": "Company ID",
-      "defaultValue": "9950-7313-3378-1625-9981"
+      "defaultValue": ""
     },
     {
       "key": "apiApplication",
       "type": "String",
       "label": "API Application ID",
-      "defaultValue": "6ifJcQYa1rFY"
+      "defaultValue": ""
     },
     {
       "key": "apiVersion",
