@@ -7,49 +7,5 @@
     "minCols": 3,
     "minRows": 3
   },
-  "inputs": [
-    {
-      "key": "bearerToken",
-      "type": "String",
-      "label": "Bearer token (IXON API)",
-      "defaultValue": ""
-    },
-    {
-      "key": "companyId",
-      "type": "String",
-      "label": "Company ID",
-      "defaultValue": ""
-    },
-    {
-      "key": "apiApplication",
-      "type": "String",
-      "label": "API Application ID",
-      "defaultValue": ""
-    },
-    {
-      "key": "apiVersion",
-      "type": "String",
-      "label": "API Version",
-      "defaultValue": "2"
-    },
-    {
-      "key": "agentId",
-      "type": "String",
-      "label": "Agent publicId",
-      "defaultValue": "ll4ikpRsR2MC"
-    },
-    {
-      "key": "dataSourceName",
-      "type": "String",
-      "label": "Data source name",
-      "defaultValue": "Databron-PLC"
-    },
-    {
-      "key": "tagSlug",
-      "type": "String",
-      "label": "Tag slug",
-      "defaultValue": "FT_301"
-    }
-  ]
+  "inputs": []
 }
-

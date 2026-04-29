@@ -1,3 +1,6 @@
-apiApplication: 6ifJcQYa1rFY
-bearerToken: OE94BPCEJeT8ZaaS5mIqOdJQ30Lo25sB
-companyId: 9950-7313-3378-1625-9981
+config:
+  apiApplication: "6ifJcQYa1rFY"
+  companyId: "9950-7313-3378-1625-9981"
+
+secrets:
+  bearerToken: "C89BzfMtkno1tz8XBtkIUKbKiId2yK6V"
